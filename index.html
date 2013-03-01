@@ -1,0 +1,61 @@
+<!doctype html>
+<title>Presentation</title>
+
+<style>
+body { margin: 0; }
+canvas { display: block; margin: 0 auto; }
+</style>
+
+<script src='import/pdf.js'></script>
+
+<canvas id='view'></canvas>
+
+<script>
+var config = {
+  url: 'presentation.pdf',
+  width: 1024,
+  height: 768,
+  interval: 1000 // ms between server polls
+}; 
+
+var doc = null;
+var num = 1;
+var scale;
+
+PDFJS.disableWorker = true;
+PDFJS.getDocument(config.url).then(function loaded(_doc) {
+  doc = _doc;
+
+  (onresize = function rescale() {
+    var w = innerWidth / config.width;
+    var h = innerHeight / config.height;
+    scale = Math.min(w, h);
+    render();
+  })();
+
+  (this.update = function update() {
+    var req = new XMLHttpRequest();
+    req.onreadystatechange = function() {
+      if (req.readyState != 4) return;
+      var newest = parseInt(req.responseText);
+      if (num != (num = newest)) render();
+    };
+    req.open('GET', 'current.txt?d=' + new Date().getTime(), true);
+    req.send(null);
+  })();
+  setInterval(update, 1000);
+});
+
+function render() {
+  doc.getPage(num).then(function(page) {
+    var viewport = page.getViewport(scale);
+    view.height = viewport.height;
+    view.width = viewport.width;
+
+    page.render({
+      canvasContext: view.getContext('2d'),
+      viewport: viewport
+    });
+  });
+}
+</script>
